@@ -365,6 +365,10 @@
   .chip.c25   { background: var(--chip-green); }
   .chip.c500  { background: var(--chip-gold); color: #1a1a2e; }
   .chip.c1000 { background: var(--chip-black); }
+  .chip.c10k  { background: linear-gradient(135deg, #6a3093, #a044ff); }
+  .chip.c25k  { background: linear-gradient(135deg, #c65102, #e87b24); }
+  .chip.c50k  { background: linear-gradient(135deg, #1a6b8a, #2ec4d6); }
+  .chip.c100k { background: linear-gradient(135deg, #8e8e93, #d4d4dc); color: #1a1a2e; }
 
   .bet-amount {
     font-size: 0.75rem;
@@ -406,6 +410,10 @@
   .chip-btn.c25   { background: var(--chip-green); }
   .chip-btn.c500  { background: var(--chip-gold); color: #1a1a2e; }
   .chip-btn.c1000 { background: var(--chip-black); }
+  .chip-btn.c10k  { background: linear-gradient(135deg, #6a3093, #a044ff); }
+  .chip-btn.c25k  { background: linear-gradient(135deg, #c65102, #e87b24); }
+  .chip-btn.c50k  { background: linear-gradient(135deg, #1a6b8a, #2ec4d6); }
+  .chip-btn.c100k { background: linear-gradient(135deg, #8e8e93, #d4d4dc); color: #1a1a2e; }
   .chip-btn.c-all { background: linear-gradient(135deg, #8b2252, #c0392b); font-size: 0.55rem; letter-spacing: 1px; }
 
   /* Dragging chip ghost */
@@ -430,6 +438,10 @@
   .chip-ghost.c25   { background: var(--chip-green); }
   .chip-ghost.c500  { background: var(--chip-gold); color: #1a1a2e; }
   .chip-ghost.c1000 { background: var(--chip-black); }
+  .chip-ghost.c10k  { background: linear-gradient(135deg, #6a3093, #a044ff); }
+  .chip-ghost.c25k  { background: linear-gradient(135deg, #c65102, #e87b24); }
+  .chip-ghost.c50k  { background: linear-gradient(135deg, #1a6b8a, #2ec4d6); }
+  .chip-ghost.c100k { background: linear-gradient(135deg, #8e8e93, #d4d4dc); color: #1a1a2e; }
   .chip-ghost.c-all { background: linear-gradient(135deg, #8b2252, #c0392b); font-size: 0.55rem; letter-spacing: 1px; }
 
   /* ── Controls ── */
@@ -643,7 +655,7 @@
       </div>
     </div>
 
-    <div class="result-banner" id="resultBanner" onclick="if(phase==='done')newRound()">
+    <div class="result-banner" id="resultBanner" onclick="if(phase==='done'){newRound();event.stopPropagation();}">
       <div class="result-text" id="resultText"></div>
       <div class="result-sub" id="resultSub"></div>
       <div class="result-continue">Click anywhere to continue</div>
@@ -657,6 +669,10 @@
   <div class="chip-btn c25" data-value="25">25</div>
   <div class="chip-btn c500" data-value="500">500</div>
   <div class="chip-btn c1000" data-value="1000">1K</div>
+  <div class="chip-btn c10k" data-value="10000" style="display:none;">10K</div>
+  <div class="chip-btn c25k" data-value="25000" style="display:none;">25K</div>
+  <div class="chip-btn c50k" data-value="50000" style="display:none;">50K</div>
+  <div class="chip-btn c100k" data-value="100000" style="display:none;">100K</div>
   <div class="chip-btn c-all" data-value="all">ALL</div>
 </div>
 
@@ -695,6 +711,7 @@ const DRAG_THRESHOLD = 120;
 // Chip drag state
 let chipDrag = null;
 let selectedChipValue = 500;
+let lastWinBets = null;
 let chipGhost = null;
 
 const suits = ['♠','♥','♦','♣'];
@@ -743,10 +760,24 @@ function updateBalance() {
   const total = bets.player + bets.banker + bets.tie;
   $('totalBet').textContent = `$${total.toLocaleString()}`;
   $('btnDeal').disabled = total < MIN_BET;
+  updateChipTray();
+}
+
+function updateChipTray() {
+  const totalWealth = balance + bets.player + bets.banker + bets.tie;
+  const thresholds = [[10000, '10000'], [25000, '25000'], [50000, '50000'], [100000, '100000']];
+  thresholds.forEach(([min, val]) => {
+    const btn = document.querySelector(`.chip-btn[data-value="${val}"]`);
+    if (btn) btn.style.display = totalWealth >= min ? '' : 'none';
+  });
 }
 
 function chipClass(value) {
   if (value === 'all') return 'c-all';
+  if (value >= 100000) return 'c100k';
+  if (value >= 50000) return 'c50k';
+  if (value >= 25000) return 'c25k';
+  if (value >= 10000) return 'c10k';
   if (value >= 1000) return 'c1000';
   if (value >= 500) return 'c500';
   return 'c25';
@@ -758,7 +789,7 @@ function renderChips(zone, amount) {
   el.innerHTML = '';
   betEl.textContent = '';
   if (amount === 0) return;
-  const denoms = [1000, 500, 25];
+  const denoms = [100000, 50000, 25000, 10000, 1000, 500, 25];
   let remaining = amount;
   const chips = [];
   for (const d of denoms) {
@@ -770,7 +801,7 @@ function renderChips(zone, amount) {
   chips.forEach(v => {
     const chip = document.createElement('div');
     chip.className = `chip ${chipClass(v)}`;
-    chip.textContent = v >= 1000 ? '1K' : v;
+    chip.textContent = chipLabel(v);
     el.appendChild(chip);
   });
   betEl.textContent = `$${amount.toLocaleString()}`;
@@ -836,7 +867,7 @@ function getZoneUnderPoint(x, y) {
 function chipLabel(value) {
   if (value === 'all') return 'ALL';
   if (value >= 1000) return (value / 1000) + 'K';
-  return value;
+  return String(value);
 }
 
 function createChipGhost(value, x, y, isAll) {
@@ -977,7 +1008,7 @@ function onBetChipPointerDown(e) {
   const zoneName = zone.dataset.zone;
 
   // Determine the chip value to remove (last placed denom)
-  const denoms = [1000, 500, 25];
+  const denoms = [100000, 50000, 25000, 10000, 1000, 500, 25];
   let removeVal = 25;
   for (const d of denoms) {
     if (bets[zoneName] >= d) { removeVal = d; break; }
@@ -1362,7 +1393,7 @@ document.addEventListener('contextmenu', e => {
 
 // Click table or anywhere to continue after round ends
 document.querySelector('.table').addEventListener('click', function(e) {
-  if (phase === 'done' && !e.target.closest('.result-banner')) newRound();
+  if (phase === 'done' && !e.target.closest('.result-banner')) { newRound(); return; }
   if (phase === 'betting' && (bets.player + bets.banker + bets.tie) >= MIN_BET && !e.target.closest('.bet-zone')) deal();
 });
 
@@ -1516,10 +1547,13 @@ function resolveRound() {
 
   if (net > 0) {
     setMessage(`You win $${net.toLocaleString()}!`, 'win');
+    lastWinBets = { player: bets.player, banker: bets.banker, tie: bets.tie };
   } else if (net === 0) {
     setMessage('Push — bets returned', '');
+    lastWinBets = null;
   } else {
     setMessage(`You lose $${Math.abs(net).toLocaleString()}`, 'lose');
+    lastWinBets = null;
   }
 
   $('resultText').textContent = resultText;
@@ -1609,7 +1643,18 @@ function newRound() {
   $('playerLabel').classList.remove('your-side');
   $('bankerLabel').classList.remove('your-side');
   document.querySelectorAll('.bet-zone').forEach(z => z.classList.remove('disabled'));
-  ['player', 'tie', 'banker'].forEach(z => renderChips(z, 0));
+
+  // Re-place winning bets if affordable
+  if (lastWinBets) {
+    const rebetTotal = lastWinBets.player + lastWinBets.banker + lastWinBets.tie;
+    if (balance >= rebetTotal) {
+      bets = { player: lastWinBets.player, banker: lastWinBets.banker, tie: lastWinBets.tie };
+      balance -= rebetTotal;
+    } else {
+      lastWinBets = null;
+    }
+  }
+  ['player', 'tie', 'banker'].forEach(z => renderChips(z, bets[z] || 0));
 
   updateBalance();
   setMessage('', '');
@@ -1634,6 +1679,7 @@ function newRound() {
 function restartGame() {
   balance = 10000;
   history = [];
+  lastWinBets = null;
   $('btnRestart').style.display = 'none';
   $('resultBanner').classList.remove('show');
   $('resultBanner').onclick = function() { if (phase === 'done') newRound(); };
