@@ -1666,13 +1666,12 @@ function newRound() {
     document.querySelectorAll('.bet-zone').forEach(z => z.classList.add('disabled'));
     $('btnDeal').disabled = true;
     $('btnNew').style.display = 'none';
-    $('btnRestart').style.display = '';
     setMessage('', '');
     $('resultText').textContent = 'Game Over';
     $('resultSub').textContent = 'Time to go to bed';
-    $('resultBanner').querySelector('.result-continue').textContent = '';
+    $('resultBanner').querySelector('.result-continue').textContent = 'Click to play again';
     $('resultBanner').classList.add('show');
-    $('resultBanner').onclick = null;
+    $('resultBanner').onclick = function() { restartGame(); };
   }
 }
 
